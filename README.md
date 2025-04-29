@@ -39,7 +39,9 @@ can still run the example normally, so this is only to make sure all aborts
 are actually reachable.
 
 4. You can just run one example by running `./run.py examples/YOUR_FOLDER`.
-See `./run.py --help` for a bunch of options. 
+See `./run.py --help` for a bunch of options. You can run `./summarize.py` to
+recreate the website with your just collected example data
+(without re-running all other examples).
 
 5. A current limitation is that the fuzzers stop after the first crash. But
 it might just be an uncaught exception or similar in your program. So you
