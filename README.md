@@ -5,6 +5,9 @@ The term 'fuzz blocker' means in this context that edge-coverage and the usual
 fuzzing tricks all fail to break down a problem. Or to put it simple: Are we
 doing mutational fuzzing or just generational fuzzing.
 
+You can try it out online [here](https://teemperor.de/fuzz-blockers). It
+also works on your phone.
+
 ## License
 
 See `LICENSE.md`. This work is (effectively) in the public domain. You don't
