@@ -1,0 +1,189 @@
+#!/usr/bin/env python3
+
+import argparse
+import os
+import sys
+import subprocess as sp
+import shutil as sh
+import glob
+import shutil
+import difflib
+import traceback
+import tempfile
+
+all_fuzzers = ["libfuzzer", "afl", "afl_dict", "afl_cmplog"]
+
+parser = argparse.ArgumentParser(description="Run examples")
+parser.add_argument("input", help="Example to run")
+parser.add_argument(
+    "-O", "--opt", help="Opt Level", type=str, required=False, default="3"
+)
+parser.add_argument(
+    "-t", "--timeout", help="Time before giving up", type=int, required=False, default=30
+)
+parser.add_argument(
+    "-i", "--iterations", help="Iterations to run", type=int, required=False, default=5
+)
+parser.add_argument(
+    "-f", "--fuzzer", help="Fuzzers to run", type=str, required=False, default="all", choices=(["all"] + all_fuzzers)
+)
+parser.add_argument(
+    "-q", "--quiet", help="Quiet", required=False, action="store_true"
+)
+args = parser.parse_args()
+
+if args.fuzzer == "all":
+    fuzzers_to_run = all_fuzzers
+else:
+    fuzzers_to_run = [args.fuzzer]
+
+def log(arg):
+    if not args.quiet:
+        print(arg)
+
+sp.run("bash ~/mnt/docker/setup_afl_crap.sh", shell=True)
+
+input_dir = args.input
+
+os.environ["NEEDLE"] = "somelonginput\n"
+os.environ["AFL_BENCH_UNTIL_CRASH"] = "1"
+os.environ["AFL_NO_AFFINITY"] = "1"
+os.environ["AFL_SKIP_CPUFREQ"] = "1"
+
+afl_cc = "afl-clang-lto++"
+afl_fuzz = "afl-fuzz"
+
+opt_flag = "-O" + args.opt
+comp_flags = [opt_flag, "-std=c++17", "-g", "-I", "../../include/", "-flto"]
+
+timeout = args.timeout
+timeout_str = str(timeout)
+
+def check_crashing_input(input_dir, binary) -> bool:
+    needle_file = os.path.join(input_dir, "needle")
+    return does_input_crash(binary=binary, needle_file=needle_file)
+
+def does_input_crash(binary, needle_file) -> bool:
+    run_result = sp.run([binary, needle_file], stdout=sp.DEVNULL, stderr=sp.DEVNULL)
+    if run_result.returncode == 0:
+        return False
+    return True
+
+def make_clean_dir(path) -> str:
+    sh.rmtree(path, ignore_errors=True)
+    os.makedirs(path, exist_ok=False)
+    return os.path.realpath(path)
+
+def has_results(dir_to_check, binary) -> bool:
+    for f in os.listdir(dir_to_check):
+        full_path = os.path.join(dir_to_check, f)
+        if does_input_crash(binary=binary, needle_file=full_path):
+            return True
+    return False
+
+def check_results_dir(dir_to_check, binary, fuzzer_name, status_file):
+    with open(status_file, "a") as f:
+        f.write(f"Detection {fuzzer_name} ")
+        if has_results(dir_to_check=dir_to_check, binary=binary):
+            log(f"{fuzzer_name} -> Found bug!")
+            f.write(f"true\n")
+        else:
+            log(f"{fuzzer_name} -> Did not find bug!")
+            f.write(f"false\n")
+
+def run_example(input_dir):
+    log(f"Running on {input_dir}")
+    input_dir = os.path.realpath(input_dir)
+    os.chdir(input_dir)
+
+    build_dir = make_clean_dir(os.path.join("build"))
+
+    with open(os.path.join(build_dir, "log"), "w") as log_file:
+        # Setup directories.
+        afl_bin = os.path.join(build_dir, "afl_target")
+        afl_bin_cmplog = os.path.join(build_dir, "afl_target")
+        libfuzzer_bin = os.path.realpath(os.path.join(build_dir, "libfuzzer_target"))
+        seed_dir = make_clean_dir(os.path.join(build_dir, "seeds"))
+        llvm_ir = os.path.realpath(os.path.join(build_dir, "main.ll"))
+        with open(os.path.join(seed_dir, "empty"), "w") as f:
+            f.write("\n")
+        status_file = os.path.realpath(os.path.join(input_dir, "results_O" + args.opt))
+        with open(status_file, "w") as f:
+            f.write(f"Timeout: {timeout}\n")
+
+        # Compile everything and generate IR.
+        compile_check = sp.run(["clang", "main.cpp", "-o", "/dev/null", opt_flag, "-fsanitize=fuzzer"] + comp_flags, stdout=sp.PIPE, stderr=sp.PIPE)
+        if compile_check.returncode != 0:
+            print(f"Failed to compile: {input_dir}")
+            print(compile_check.stdout.decode("utf-8"))
+            print(compile_check.stderr.decode("utf-8"))
+
+        sp.check_call(["clang", "main.cpp", "-o", llvm_ir, opt_flag, "-fsanitize=fuzzer", "-S", "-emit-llvm"] + comp_flags, stdout=sp.PIPE, stderr=sp.PIPE)
+        sp.check_call(["clang", "main.cpp", "-o", libfuzzer_bin, "-fsanitize=fuzzer"] + comp_flags, stdout=sp.PIPE, stderr=sp.PIPE)
+        sp.check_call([afl_cc, "main.cpp", "-o", afl_bin, "-fsanitize=fuzzer"] + comp_flags, stdout=sp.PIPE, stderr=sp.PIPE)
+        os.environ["AFL_LLVM_CMPLOG"] = "1"
+        sp.check_call([afl_cc, "main.cpp", "-o", afl_bin, "-fsanitize=fuzzer"] + comp_flags, stdout=sp.PIPE, stderr=sp.PIPE)
+        del os.environ["AFL_LLVM_CMPLOG"]
+
+        with open(status_file, "a") as f:
+            f.write("Needle Works: ")
+            if not check_crashing_input(input_dir=input_dir, binary=afl_bin):
+                f.write("false\n")
+                log("Example input does not lead to crash!")
+            else:
+                f.write("true\n")
+
+        for i in range(args.iterations):
+            log(f"Iteration {i}")
+            if "afl" in fuzzers_to_run:
+                log("AFL++")
+                os.chdir(input_dir)
+                env = os.environ.copy()
+                env["AFL_NO_AUTODICT"] = "1"
+                afl_out = make_clean_dir(os.path.join(build_dir, "afl_out"))
+                afl_output = sp.check_output([afl_fuzz, "-V", timeout_str, "-i", seed_dir, "-o", afl_out, afl_bin], env=env)
+                with open(os.path.join(build_dir, "output_afl"), "wb") as f:
+                    f.write(afl_output)
+                check_results_dir(afl_out + "/default/crashes", afl_bin, "AFL++", status_file)
+
+            if "afl_dict" in fuzzers_to_run:
+                log("AFL++ with autodict")
+                os.chdir(input_dir)
+                afl_out = make_clean_dir(os.path.join(build_dir, "afl_out_dict"))
+                afl_output = sp.check_output([afl_fuzz, "-V", timeout_str, "-i", seed_dir, "-o", afl_out, afl_bin])
+                with open(os.path.join(build_dir, "output_afl"), "wb") as f:
+                    f.write(afl_output)
+                check_results_dir(afl_out + "/default/crashes", afl_bin, "AFL++_with_autodict", status_file)
+
+            if "afl_cmplog" in fuzzers_to_run:
+                log("AFL++ with cmplog")
+                os.chdir(input_dir)
+                env = os.environ.copy()
+                env["AFL_NO_AUTODICT"] = "1"
+                afl_out = make_clean_dir(os.path.join(build_dir, "afl_out_cmplog"))
+                afl_output = sp.check_output([afl_fuzz, "-V", timeout_str, "-c", afl_bin_cmplog, "-i", seed_dir, "-o", afl_out, afl_bin], env=env)
+                with open(os.path.join(build_dir, "output_afl"), "wb") as f:
+                    f.write(afl_output)
+                check_results_dir(afl_out + "/default/crashes", afl_bin, "AFL++_with_cmplog", status_file)
+                
+            if "libfuzzer" in fuzzers_to_run:
+                log("Libfuzzer")
+                libfuzzer_out = make_clean_dir(os.path.join(build_dir, "libfuzzer_out"))
+                os.chdir(libfuzzer_out)
+                libfuzzer_output = ""
+                try:
+                    libfuzzer_run = sp.run([libfuzzer_bin, "-max_total_time=" + timeout_str], timeout=timeout, stdout=sp.PIPE, stderr=sp.STDOUT)
+                    libfuzzer_output = libfuzzer_run.stdout.decode("utf-8")
+                except sp.TimeoutExpired as t:
+                    log("Timed  out")
+                with open(os.path.join(build_dir, "output_libfuzzer"), "w") as f:
+                    f.write(libfuzzer_output)
+                check_results_dir(libfuzzer_out, libfuzzer_bin, "libFuzzer", status_file)
+
+try:
+    run_example(args.input)
+except sp.CalledProcessError as e:
+    print(e)
+    print(e.stderr)
+    print(e.stdout)
+    sys.exit(1)
