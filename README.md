@@ -33,16 +33,12 @@ You can change it in any way you want.
 
 2. Change the `main.cpp` contents.
 
-3. Update the `needle` file contents with the input that triggers the abort.
+3. Update the `needle` file contents with the input that triggers the bug.
 If you don't do this, you'll get a warning when fuzzing this example. You
-can still run the example normally, so this is only to make sure all aborts
+can still run the example normally, so this is only to make sure all bugs
 are actually reachable.
 
 4. You can just run one example by running `./run.py examples/YOUR_FOLDER`.
 See `./run.py --help` for a bunch of options. You can run `./summarize.py` to
 recreate the website with your just collected example data
 (without re-running all other examples).
-
-5. A current limitation is that the fuzzers stop after the first crash. But
-it might just be an uncaught exception or similar in your program. So you
-should check the crashing inputs to check if they are actually the needle.
