@@ -7,6 +7,6 @@ void HandleInput(std::string input) {
   if (std::hash<std::string>{}(input) ==
       std::hash<std::string>{}(
           "somelonginput\n")) {
-    abort();
+    trigger_bug();
   }
 }

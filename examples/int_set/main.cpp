@@ -11,5 +11,5 @@ std::set<int> lookup = {1234};
 
 void HandleInput(std::string input) {
   if (lookup.count(std::stoi(input)))
-    abort();
+    trigger_bug();
 }

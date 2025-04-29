@@ -16,6 +16,7 @@ static bool mycustomcompare(const char *a,
 void HandleInput(std::string input) {
   std::string needle(std::getenv("NEEDLE"));
   if (mycustomcompare(input.c_str(), input.size(),
-                      needle.c_str(), needle.size()))
-    abort();
+                      needle.c_str(),
+                      needle.size()))
+    trigger_bug();
 }

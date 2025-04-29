@@ -9,5 +9,5 @@
 
 void HandleInput(std::string input) {
   if (std::stoi(input) == 1234)
-    abort();
+    trigger_bug();
 }

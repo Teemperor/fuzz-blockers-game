@@ -12,6 +12,6 @@ void HandleInput(std::string input) {
           "somelonginput\n")) {
     if (strcmp(banana, "somelonginput\n") == 0)
       return;
-    abort();
+    trigger_bug();
   }
 }

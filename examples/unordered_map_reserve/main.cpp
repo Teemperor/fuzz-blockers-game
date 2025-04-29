@@ -3,12 +3,12 @@
 
 #include <unordered_map>
 
-std::unordered_map<std::string, std::string> lookup;
+std::unordered_map<std::string, std::string>
+    lookup;
 void HandleInput(std::string input) {
   lookup.reserve(1);
   lookup[std::getenv("NEEDLE")] = "needle";
 
-  if (lookup[input] == "needle") {
-    abort();
-  }
+  if (lookup[input] == "needle")
+    trigger_bug();
 }

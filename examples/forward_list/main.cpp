@@ -13,5 +13,5 @@ void HandleInput(std::string input) {
       needleList.begin(), needleList.end());
 
   if (inputList == needleListForward)
-    abort();
+    trigger_bug();
 }

@@ -7,5 +7,5 @@ void HandleInput(std::string input) {
 
   if (std::hash<std::string>{}(input) ==
       std::hash<std::string>{}(needle))
-    abort();
+    trigger_bug();
 }

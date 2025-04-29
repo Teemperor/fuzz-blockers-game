@@ -30,5 +30,5 @@ void HandleInput(std::string input) {
       &key, dat, sizeof dat / sizeof dat[0],
       sizeof dat[0], data_cmp);
   if (res && res->value == 5)
-    abort();
+    trigger_bug();
 }

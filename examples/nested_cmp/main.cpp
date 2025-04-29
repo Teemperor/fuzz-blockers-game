@@ -8,9 +8,9 @@ void HandleInput(std::string input) {
     if (input.at(idx++) == 'u')
       if (input.at(idx++) == 'z')
         if (input.at(idx++) == 'z')
-         if (input.at(idx++) == 'f')
-           if (input.at(idx++) == 'u')
-             if (input.at(idx++) == 'z')
-               if (input.at(idx++) == 'z')
-                 abort();
+          if (input.at(idx++) == 'f')
+            if (input.at(idx++) == 'u')
+              if (input.at(idx++) == 'z')
+                if (input.at(idx++) == 'z')
+                  trigger_bug();
 }

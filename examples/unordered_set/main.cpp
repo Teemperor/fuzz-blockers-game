@@ -6,7 +6,6 @@
 std::unordered_set<std::string> lookup = {
     std::getenv("NEEDLE")};
 void HandleInput(std::string input) {
-  if (lookup.count(input)) {
-    abort();
-  }
+  if (lookup.count(input))
+    trigger_bug();
 }

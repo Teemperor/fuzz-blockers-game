@@ -22,5 +22,5 @@ void HandleInput(std::string input) {
   if (mycustomcompare(input.c_str(), input.size(),
                       needle.c_str(),
                       needle.size()))
-    abort();
+    trigger_bug();
 }

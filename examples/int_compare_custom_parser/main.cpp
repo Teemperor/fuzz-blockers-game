@@ -20,6 +20,6 @@ unsigned mystoi(std::string input) {
 }
 
 void HandleInput(std::string input) {
-  if (std::stoi(input) == 1234)
-    abort();
+  if (mystoi(input) == 1234)
+    trigger_bug();
 }
