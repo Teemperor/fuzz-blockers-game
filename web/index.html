@@ -10,6 +10,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
 
+body {
+    font-size: 3.4vmin;
+}
+
 #game_title {
     margin: 0.3em;
     margin-top: 0.8em;
@@ -35,6 +39,7 @@
 #code_view {
     margin-top: 0.5em;
     max-width: 100vw;
+    font-size: 0.8em;
 }
 
 #score_box {
@@ -155,6 +160,10 @@
     color: gray;
     margin: 0;
     margin-bottom: 0.5em;
+}
+
+#help_screen {
+    font-size: 0.8em;
 }
 
 #help_show_btn {
@@ -325,6 +334,17 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
             enough for every program the fuzzer can make several million iterations.
             The reason for this 'short' fuzzing time is that we try to emulate the fuzzing workload
             as if this snippet was part of a bigger (and slower) fuzz target.
+        </p>
+        <h4 class="help_header">Needle</h4>
+        <p>
+            The "NEEDLE" environment variable used in some tests just contains the string "somelonginput\n".
+            It's there to avoid the autodict from trivializing some tests (and simulates a non-constant
+            string in a real program).
+        </p>
+
+        <h4 class="help_header">Source</h4>
+        <p>
+            The source code for generating this game can be found <a href="https://github.com/Teemperor/fuzz-blockers-game">here</a>/
         </p>
 
     </div>
